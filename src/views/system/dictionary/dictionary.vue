@@ -10,6 +10,7 @@
           node-key="dictionaryId"
           ref="tree"
           @nodeClick="handleCictionaryName"
+          :renderContent="renderContent"
         ></left-tree>
       </div>
     </div>
@@ -23,13 +24,14 @@
         save-interface="base/dictionarydata/save"
         update-interface="base/dictionarydata/update"
         delete-interface="base/dictionarydata/delete"
-        isDefaultQuery
         :columns="columns"
+        :uid.sync="uid"
         :rules="rules"
         :reset-form="resetForm"
         :add-controller="addController"
         :param-controller="paramController"
         :btn-operation-type.sync="btnOperationType"
+        noViewBtn
       >
         <template slot="searchForm" slot-scope="data">
           <el-form-item label="字典名称" prop="dictionarydataName">
@@ -67,9 +69,9 @@
           <el-form-item label="排序" prop="orderId">
             <el-input-number v-model="data.addForm.orderId" :min="0"></el-input-number>
           </el-form-item>
-          <el-form-item label="是否启用" prop="isEnable">
+          <!-- <el-form-item label="是否启用" prop="isEnable">
             <el-switch v-model="data.addForm.isEnable"></el-switch>
-          </el-form-item>
+          </el-form-item> -->
           <el-form-item label="字典描述" prop="description">
             <el-input
               v-model="data.addForm.description"
@@ -95,7 +97,7 @@
 </template>
 
 <script>
-import FormBase from "../../../components/FormBase";
+import FormBase from "../../../components/FormBase.vue";
 import LeftTree from "../../../components/Tree/leftTree";
 import AElDialog from "../../../components/Dialog/AElDialog";
 import DictionaryClassify from "./dictionaryClassify";
@@ -113,12 +115,14 @@ export default {
   },
   data() {
     return {
+      uid: "",
       btnOperationType: "add",
       dictionaryDataTree: [],
       dictionaryLoading: true,
       addDictionarySaveShow: false,
       columns: [
         {
+          align: "left",
           label: "字典名称",
           prop: "dictionarydataName"
         },
@@ -126,15 +130,23 @@ export default {
           label: "字典键值",
           prop: "dictionarydataValue"
         },
-        {
-          label: "是否启用",
-          prop: "isEnable"
-        },
+        // {
+        //   label: "是否启用",
+        //   prop: "isEnable",
+        //   render: (h, param) => {
+        //     return (
+        //       <div>
+        //         <el-switch v-model={param.row.isEnable} disabled></el-switch>
+        //       </div>
+        //     );
+        //   }
+        // },
         {
           label: "排序",
           prop: "orderId"
         },
         {
+          align: "left",
           label: "描述",
           prop: "description"
         }
@@ -165,6 +177,19 @@ export default {
     });
   },
   methods: {
+    renderContent(h, { node, data }) {
+      return (
+        <span class="custom-tree-node" style="font-size: 14px; color: #606266;">
+          <span
+            class={
+              data.children.length > 0 ? "fa fa-folder" : "fa fa-file-text-o"
+            }
+            style="margin-right: 5px;"
+          ></span>
+          <span>{node.label}</span>
+        </span>
+      );
+    },
     resetForm(self) {
       self.addForm = {
         dictionarydataName: "",

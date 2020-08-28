@@ -2,7 +2,7 @@
   <div class="dictionaryTree">
     <el-tree
       :data="treedataSync"
-      :props="{label}"
+      :props="{ label }"
       :show-checkbox="!single"
       :node-key="nodeKey"
       :highlight-current="single"

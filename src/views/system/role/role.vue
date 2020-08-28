@@ -10,27 +10,40 @@
       delete-interface="base/role/delete"
       @current-change="currentChange"
       :columns="columns"
+      :uid.sync="uid"
       :rules="rules"
       :reset-form="resetForm"
+      noViewBtn
     >
       <template slot="searchForm" slot-scope="data">
         <el-form-item label="角色名称" prop="keyword">
-          <el-input v-model="data.formInline.keyword" size="small" placeholder="请输入角色名称" clearable></el-input>
+          <el-input
+            v-model="data.formInline.keyword"
+            size="small"
+            placeholder="请输入角色名称"
+            clearable
+          ></el-input>
         </el-form-item>
-        <el-form-item label="是否启用" prop="isEnable">
+        <!-- <el-form-item label="是否启用" prop="isEnable">
           <el-select v-model="data.formInline.isEnable" size="small" clearable>
             <el-option label="是" :value="true"></el-option>
             <el-option label="否" :value="false"></el-option>
           </el-select>
-        </el-form-item>
+        </el-form-item> -->
       </template>
       <template slot="toolbar">
         <el-dropdown style="margin-left: 5px;">
           <el-button type="primary" size="small">
-            更多操作<i class="el-icon-arrow-down el-icon--right"></i>
+            更多操作
+            <i class="el-icon-arrow-down el-icon--right"></i>
           </el-button>
           <el-dropdown-menu slot="dropdown">
-            <el-dropdown-item @click.native="setPowers">功能授权</el-dropdown-item>
+            <el-dropdown-item @click.native="setPowers"
+              >功能授权</el-dropdown-item
+            >
+            <el-dropdown-item @click.native="showAel"
+              >人员授权</el-dropdown-item
+            >
           </el-dropdown-menu>
         </el-dropdown>
       </template>
@@ -41,16 +54,19 @@
         <el-form-item label="角色编号" prop="roleCode">
           <el-input v-model="data.addForm.roleCode" size="small"></el-input>
         </el-form-item>
-        <el-form-item label="是否启用" prop="isEnable">
+        <!-- <el-form-item label="是否启用" prop="isEnable">
           <el-switch v-model="data.addForm.isEnable"></el-switch>
-        </el-form-item>
+        </el-form-item> -->
         <el-form-item label="排序" prop="orderId">
-          <el-input-number v-model="data.addForm.orderId" :min="0" size="small"></el-input-number>
+          <el-input-number
+            v-model="data.addForm.orderId"
+            :min="0"
+            size="small"
+          ></el-input-number>
         </el-form-item>
       </template>
     </form-base>
-
-    <a-el-dialog :visible.sync="powersetshow" title="权限设置">
+    <a-el-dialog :visible.sync="powersetshow" width="640px" title="权限设置">
       <el-tree
         ref="tree"
         :data="treedata"
@@ -61,32 +77,51 @@
         :props="defaultProps"
       ></el-tree>
       <template slot="footer">
-        <el-button type="primary" size="small" @click="submit" :loading="loading">确定</el-button>
-        <el-button type="default" size="small" @click="powersetshow = false">取消</el-button>
+        <el-button
+          type="primary"
+          size="small"
+          @click="submit"
+          :loading="loading"
+          >确定</el-button
+        >
+        <el-button type="default" size="small" @click="powersetshow = false"
+          >取消</el-button
+        >
       </template>
     </a-el-dialog>
+
+    <role-option-user
+      :uid="uid"
+      title="人员授权"
+      :visible.sync="powershow"
+      :user-list="userList"
+      primary-id="userId"
+    ></role-option-user>
   </div>
 </template>
 
 <script type="text/jsx">
 import FormBase from "../../../components/FormBase";
 import AElDialog from "../../../components/Dialog/AElDialog";
+import RoleOptionUser from "./roleOptionUser.vue";
 import {
   resBaseMenuQueryTree,
   resBaseMenuRoleAddMenus,
-  resBaseMenuQueryMenuIdByRoleId
+  resBaseMenuQueryMenuIdByRoleId,
+  queryUserOfRole
 } from "../../../api";
 import { IS_OK } from "../../../api/path";
 export default {
   name: "role",
   components: {
     FormBase,
-    AElDialog
+    AElDialog,
+    RoleOptionUser
   },
   data() {
     return {
       uid: "",
-      powersetshow: false,
+      powershow: false,
       loading: false,
       treedata: [],
       defaultProps: {
@@ -114,19 +149,22 @@ export default {
           align: "center",
           label: "排序"
         },
-        {
-          prop: "isEnable",
-          label: "是否启用",
-          align: "center",
-          render: (h, param) => {
-            return (
-              <div>
-                <el-switch v-model={param.row.isEnable} disabled></el-switch>
-              </div>
-            );
-          }
-        }
-      ]
+        // {
+        //   prop: "isEnable",
+        //   label: "是否启用",
+        //   align: "center",
+        //   render: (h, param) => {
+        //     return (
+        //       <div>
+        //         <el-switch v-model={param.row.isEnable} disabled></el-switch>
+        //       </div>
+        //     );
+        //   }
+        // }
+      ],
+      powersetshow: false,
+      powerDialogVisible: false,
+      userList: [] //角色授权用户
     };
   },
   created() {
@@ -141,6 +179,21 @@ export default {
     });
   },
   methods: {
+    /*角色的授权人员*/
+    async showAel() {
+      if (this.uid === '' || this.uid === null){
+        this.$message({
+          message: "您没有选中任何数据项,请选中后再操作！",
+          type: "warning"
+        });
+        return
+      }
+      const res = await queryUserOfRole(this.uid);
+      if (res.data.code === IS_OK) {
+        this.userList = res.data.data;
+      }
+      this.powershow = true;
+    },
     async getMenuList() {
       const res = await resBaseMenuQueryTree();
       if (res.data.code === IS_OK) {

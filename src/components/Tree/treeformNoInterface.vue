@@ -2,13 +2,14 @@
   <div class="treeform">
     <el-tree
       :data="treedataSync"
-      :props="{label}"
+      :props="{ label }"
       :show-checkbox="!single"
       :node-key="nodeKey"
       :highlight-current="single"
       :check-on-click-node="true"
       :expandOnClickNode="false"
       ref="tree"
+      :render-content="renderContent"
       :default-expand-all="defaultExpandAll"
       @node-click="nclick"
     ></el-tree>
@@ -36,7 +37,8 @@ export default {
     defaultExpandAll: {
       type: Boolean,
       default: true
-    }
+    },
+    renderContent: Function
   },
   data() {
     return {

@@ -1,16 +1,16 @@
 <template>
-  <div class="dictionaryTree">
+  <div class="dictionaryTree" v-if="treedata.length>0">
     <el-tree
       :data="treedataSync"
-      :props="{label}"
+      :props="{ label }"
       :show-checkbox="!single"
       :node-key="nodeKey"
       :highlight-current="single"
       :check-on-click-node="true"
       :expandOnClickNode="false"
       :render-content="renderContent"
+      :default-expanded-keys="defaultExpandedKeys"
       ref="tree"
-      :default-expand-all="defaultExpandAll"
       @node-click="nclick"
     ></el-tree>
   </div>
@@ -36,14 +36,15 @@ export default {
     },
     defaultExpandAll: {
       type: Boolean,
-      default: true
+      default: false
     },
     renderContent: Function
   },
   data() {
     return {
       current: {},
-      treedataSync: this.treedata
+      treedataSync: this.treedata,
+      defaultExpandedKeys: []
     };
   },
   methods: {
@@ -55,6 +56,7 @@ export default {
     },
     nclick(data) {
       this.current = data;
+
       this.$emit("nodeClick", data);
     },
     findLabelName(arr, val) {
@@ -95,6 +97,11 @@ export default {
         });
         this.$emit("labelName", name.join("、"));
       }
+    },
+    setCurrentKey(val) {
+      this.$nextTick(() => {
+        this.$refs.tree.setCurrentKey(val);
+      });
     }
   },
   watch: {
@@ -119,6 +126,11 @@ export default {
       this.$emit("update:treedata", val);
     },
     treedata(val) {
+      if (val.length > 0) {
+        val.map(item => {
+          this.defaultExpandedKeys.push(item[this.nodeKey]);
+        });
+      }
       this.treedataSync = val;
     }
   }

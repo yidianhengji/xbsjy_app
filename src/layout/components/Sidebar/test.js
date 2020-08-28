@@ -61,4 +61,4 @@
     icon: "el-icon-document",
     url: "/goods"
   }
-]
+];

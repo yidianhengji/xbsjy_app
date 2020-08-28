@@ -20,15 +20,18 @@
         <form-base
           ref="findex"
           primaryId="documentId"
+          rowKey="documentId"
           query-interface="ddc/document/page"
-          query-one-interface="ddc/document/info/edit"
+          query-one-interface="ddc/document/info"
           save-interface="ddc/document/saveDocAndDetail"
           update-interface="ddc/document/update"
           delete-interface="ddc/document/delete"
           @current-change="currentChange"
           :columns="columns"
-          isDefaultQuery
+          :uid.sync="uid"
           :rules="rules"
+          noViewBtn
+          isDefaultQuery
           :reset-form="resetForm"
           :btn-operation-type.sync="btnOperationType"
           :reset-controller="resetController"
@@ -47,9 +50,11 @@
           <template slot="toolbar">
             <el-dropdown style="margin-left: 5px;">
               <el-button type="primary" size="small">
-                更多操作<i class="el-icon-arrow-down el-icon--right"></i>
+                更多操作
+                <i class="el-icon-arrow-down el-icon--right"></i>
               </el-button>
               <el-dropdown-menu slot="dropdown">
+                <el-dropdown-item @click.native="documentCopyBtn">复制</el-dropdown-item>
                 <el-dropdown-item @click.native="documentDetailsBtn">详情</el-dropdown-item>
                 <el-dropdown-item @click.native="documentDownloadBtn">下载</el-dropdown-item>
                 <el-dropdown-item @click.native="documentCheckOutBtn">检出</el-dropdown-item>
@@ -60,6 +65,8 @@
                 <el-dropdown-item @click.native="documentUnLockDocBtn">解锁</el-dropdown-item>
                 <el-dropdown-item @click.native="documentdetail">文件记录</el-dropdown-item>
                 <el-dropdown-item @click.native="powerBtn">权限</el-dropdown-item>
+                <el-dropdown-item @click.native="workEnvironmentBtn">工作环境</el-dropdown-item>
+                <!-- <el-dropdown-item @click.native="documentMvDocuments">移动</el-dropdown-item> -->
                 <el-dropdown-item @click.native="logBtn">操作日志</el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
@@ -67,21 +74,26 @@
           <template slot="add" slot-scope="data">
             <el-form-item label="所属目录" prop="folderId">
               <a-eltree-select
-                :treedata.sync="folderDataTree"
-                label="folderName"
-                node-key="folderId"
+                :treedata.sync="projectAndfolderData"
+                label="name"
+                node-key="id"
                 :defaultExpandAll="false"
                 :value.sync="data.addForm.folderId"
+                :dataCallback="dataCallback"
+                :render-content="renderContent"
               ></a-eltree-select>
             </el-form-item>
             <el-form-item label="文档名称" prop="docName">
-              <el-input v-model="data.addForm.docName"></el-input>
+              <el-input v-model="data.addForm.docName" placeholder="请点击上传文件按钮" readonly></el-input>
             </el-form-item>
             <el-form-item label="版本" prop="version">
               <el-input v-model="data.addForm.version"></el-input>
             </el-form-item>
-            <el-form-item label="文件" v-if="btnOperationType=='add'">
+            <el-form-item label="文件">
               <big-files ref="bigFiles1" @file-success="fileSuccess"></big-files>
+            </el-form-item>
+            <el-form-item label="缩略图">
+              <file-base64 v-model="data.addForm.documentdetail.thumbnail" @file-change="thumbnailVal"></file-base64>
             </el-form-item>
             <el-form-item label="文档描述" prop="docDesc">
               <el-input v-model="data.addForm.docDesc" :rows="5" type="textarea"></el-input>
@@ -94,12 +106,16 @@
 
         <a-e-power
           :visible.sync="powerDialogVisible"
-          title="目录权限"
+          title="文档权限"
           :uid="uid"
+          :userList="authusers"
+          deleteAuthUsers="ddc/docauthority/deleteUsers"
           primaryId="documentId"
           :codeName="codeName"
           save-interface="ddc/docauthority/saveOrUpdate"
           query-one-interface="ddc/docauthority/queryDocAuthOfUser"
+          :checkDataList="checkDataList"
+          type="document"
         ></a-e-power>
 
         <a-el-dialog
@@ -119,7 +135,7 @@
             <el-form-item label="文件">
               <big-files ref="bigFiles2" @file-success="fileCheckInSuccess"></big-files>
             </el-form-item>
-            <el-form-item label="版本描述" prop="docDesc">
+            <el-form-item label="检入描述" prop="docDesc">
               <el-input v-model="documentCheckAddForm.docDesc" :rows="5" type="textarea"></el-input>
             </el-form-item>
           </el-form>
@@ -163,7 +179,23 @@
       </div>
     </div>
     <log v-if="logDialogVisible" :visible.sync="logDialogVisible" :uid="uid"></log>
-    <documentdetail :visible.sync="documentdetailVisible" :uid="uid"></documentdetail>
+    <documentdetail v-if="documentdetailVisible" :visible.sync="documentdetailVisible" :uid="uid" />
+    <!-- 移动 -->
+    <documents-mv :visible.sync="documentMvDocumentsVisible" />
+    <document-copy
+      v-if="copyVisible"
+      :visible.sync="copyVisible"
+      category="1"
+      :uid="uid"
+      :render-content="renderContent"
+      @queryBtn="queryBtn"
+    />
+    <WorkEnvironment
+      title="所属工作空间"
+      v-if="workEnvironmentVisible"
+      :visible.sync="workEnvironmentVisible"
+      :workspaceObj="workspaceObj"
+    ></WorkEnvironment>
   </div>
 </template>
 
@@ -184,13 +216,18 @@ import {
   resDdcDocumentAddVersion,
   resDdcDocumentLockDoc,
   resDdcDocumentUnLockDoc,
-  resDdcDocumentCheckIn
+  resDdcDocumentCheckIn,
+  docListUserByDocId
 } from "../../api/ddc";
 import { IS_OK, UPLOAD_FILE_DOWNLOAD } from "../../api/path";
 import { FOLDER_DOCUMENT } from "../../util/constListCode";
 import DocumentDetails from "./documentDetails.vue";
 import Documentdetail from "./documentdetail.vue";
+import DocumentsMv from "./documentsMv.vue";
 import { mixinMethodsDrag } from "../../mixin/mixinMethodsDrag";
+import DocumentCopy from "./documentCopy.vue";
+import WorkEnvironment from "../base/workEnvironment.vue";
+import FileBase64 from "../../components/File/FileBase64.vue";
 
 export default {
   name: "document",
@@ -204,10 +241,36 @@ export default {
     BigFiles,
     DocumentDetails,
     Log,
-    Documentdetail
+    Documentdetail,
+    DocumentsMv,
+    DocumentCopy,
+    WorkEnvironment,
+    FileBase64
   },
   data() {
+    // var validatePass = (rule, value, callback) => {
+    //   if (value === "") {
+    //     callback(new Error("请选择所属目录"));
+    //   } else {
+    //     if (this.$refs.findex.addForm.folderId !== "") {
+    //       this.$refs.findex.addForm.validateField("folderId");
+    //     }
+    //     callback();
+    //   }
+    // };
+    // var validatePass1 = (rule, value, callback) => {
+    //   if (value === "") {
+    //     callback(new Error("请上传文件"));
+    //   } else {
+    //     if (this.$refs.findex.addForm.docName !== "") {
+    //       this.$refs.findex.addForm.validateField("docName");
+    //     }
+    //     callback();
+    //   }
+    // };
     return {
+      // 复制
+      copyVisible: false,
       btnOperationType: "add",
       // 左边树
       folderLoading: true,
@@ -221,17 +284,24 @@ export default {
       dataArray: [],
       rules: {
         docName: [
-          { required: true, message: "请输入文档名称", trigger: "blur" }
+          { validator: this.validatePass1, required: true, trigger: "change" }
         ],
-        projectId: [
-          { required: true, message: "请选择所属项目", trigger: "change" }
+        folderId: [
+          { validator: this.validatePass, required: true, trigger: "change" }
         ]
+        // docName: [
+        //   { required: true, message: "请输入文档名称", trigger: "blur" }
+        // ],
+        // folderId: [
+        //   { required: true, message: "请选择所属项目", trigger: "change" }
+        // ]
       },
       columns: [
         {
           prop: "docName",
-          label: "名称",
+          label: "文档名称",
           align: "left",
+          width: "300px",
           render: (h, param) => {
             return (
               <div
@@ -239,7 +309,8 @@ export default {
                   this,
                   param.row.documentId
                 )}
-                style="color: #409EFF; cursor: pointer;"
+                title={param.row.docName}
+                style="color: #409EFF; cursor: pointer;overflow: hidden;text-overflow: ellipsis;white-space: nowrap;width: 100%;"
               >
                 {param.row.docName}
               </div>
@@ -247,11 +318,17 @@ export default {
           }
         },
         {
+          prop: "fileName",
+          label: "文件名称",
+          align: "left"
+        },
+        {
           prop: "lockStatus",
-          label: "状态",
-          align: "left",
+          label: "锁定状态",
+          width: "100px",
+          align: "center",
           render: (h, param) => {
-            let value = param.row.lockStatus ? "已锁" : "没锁";
+            let value = param.row.lockStatus ? "已锁定" : "未锁定";
             let color = param.row.lockStatus ? "red" : "green";
             return <div style={{ color: color }}>{value}</div>;
           }
@@ -259,7 +336,8 @@ export default {
         {
           prop: "checkoutStatus",
           label: "检出状态",
-          align: "left",
+          align: "center",
+          width: "100px",
           render: (h, param) => {
             let value = param.row.checkoutStatus ? "已检出" : "未检出";
             let color = param.row.checkoutStatus ? "red" : "green";
@@ -269,17 +347,29 @@ export default {
         {
           prop: "version",
           label: "版本",
+          width: "100px",
+          align: "center"
+        },
+        {
+          prop: "projectName",
+          label: "所属项目",
           align: "left"
         },
         {
-          prop: "versionSeq",
-          label: "版本序号",
+          prop: "folderName",
+          label: "所属目录",
           align: "left"
         },
         {
           prop: "versionDesc",
           label: "版本描述",
           align: "left"
+        },
+        {
+          prop: "createTime",
+          label: "创建时间",
+          width: "150px",
+          align: "center"
         }
       ],
       // 文档检入
@@ -319,7 +409,29 @@ export default {
       // 操作日志
       logDialogVisible: false,
       // 文件记录
-      documentdetailVisible: false
+      documentdetailVisible: false,
+      authusers: [],
+      treeObj: {},
+      // 移动
+      documentMvDocumentsVisible: false,
+      workEnvironmentVisible: false,
+      workspaceObj: {
+        projectId: "0",
+        folderId: "0",
+        documentId: "0",
+        configType: "3"
+      },
+      valObj: {},
+      checkDataList: [
+        { dictionarydataValue: "1", dictionarydataName: "查看" },
+        { dictionarydataValue: "2", dictionarydataName: "修改" },
+        { dictionarydataValue: "3", dictionarydataName: "删除" },
+        { dictionarydataValue: "4", dictionarydataName: "文件读" },
+        { dictionarydataValue: "5", dictionarydataName: "文件写" },
+        { dictionarydataValue: "6", dictionarydataName: "释放" },
+        { dictionarydataValue: "7", dictionarydataName: "解锁/锁定" },
+        { dictionarydataValue: "8", dictionarydataName: "设置权限" }
+      ]
     };
   },
   created() {
@@ -334,6 +446,59 @@ export default {
     });
   },
   methods: {
+    validatePass(rule, value, callback) {
+      if (value === "") {
+        callback(new Error("请选择所属目录"));
+      } else {
+        callback();
+      }
+    },
+    validatePass1(rule, value, callback) {
+      if (value === "") {
+        callback(new Error("请上传文件"));
+      } else {
+        callback();
+      }
+    },
+    dataCallback(obj) {
+      if (obj.type == "project") {
+        this.$refs.findex.addForm.folderId = "";
+        this.$message({
+          type: "warning",
+          message: "选择错误，您当前选择的是项目，请选择项目下的目录！"
+        });
+      }
+    },
+    workEnvironmentBtn() {
+      if (this.uid) {
+        this.workspaceObj.projectId = this.currentObj.projectId;
+        this.workspaceObj.folderId = this.currentObj.folderId;
+        this.workspaceObj.documentId = this.currentObj.documentId;
+        this.workEnvironmentVisible = true;
+      } else {
+        this.$message({
+          message: "您没有选中任何数据项,请选中后再操作！",
+          type: "warning"
+        });
+      }
+    },
+    queryBtn() {
+      this.getFolderQueryProFol();
+      this.$refs.findex.clickQuery();
+      this.uid = "";
+      this.valObj = {};
+    },
+    // 复制
+    documentCopyBtn() {
+      if (this.uid) {
+        this.copyVisible = true;
+      } else {
+        this.$message({
+          message: "您没有选中任何数据项,请选中后再操作！",
+          type: "warning"
+        });
+      }
+    },
     resetForm(self) {
       self.addForm = {
         folderId: "",
@@ -342,20 +507,36 @@ export default {
         orderId: 0,
         docDesc: "",
         versionDesc: "",
+        category: 1,
         documentdetail: {
           fileHashcode: "",
           fileId: "",
           fileName: "",
-          fileSize: ""
+          fileSize: "",
+          thumbnail: ""
         }
       };
+      if (this.treeObj.folderId) {
+        self.addForm.folderId = this.treeObj.id;
+        self.addForm.folderName = this.treeObj.name;
+      }
       this.selectIndex = null;
     },
+    //根据文档列出赋权的用户
+    async listUserByDocId(uid) {
+      const res = await docListUserByDocId(uid);
+      if (res.data.code === IS_OK) {
+        this.authusers = res.data.data;
+      }
+    },
     async getFolderQueryProFol() {
-      const res = await resDdcFolderQueryProFolTree({});
+      const res = await resDdcFolderQueryProFolTree({ category: 1 });
       if (res.data.code === IS_OK) {
         this.projectAndfolderData = res.data.data;
         this.folderLoading = false;
+        if (this.treeObj.id) {
+          this.$refs.tree.setCurrentKey(this.treeObj.id);
+        }
       }
     },
     async getFolderQueryTree() {
@@ -368,7 +549,7 @@ export default {
       return (
         <span class="custom-tree-node" style="font-size: 14px; color: #606266;">
           <span
-            class={data.type == "project" ? "fa fa-cube" : "fa fa-file-text-o"}
+            class={data.type == "project" ? "fa fa-archive" : "fa fa-folder"}
             style="margin-right: 5px;"
           ></span>
           <span>{node.label}</span>
@@ -382,6 +563,7 @@ export default {
     },
     fileSuccess(file, res) {
       const self = this.$refs.findex;
+      self.addForm.docName = this.splitFileName(file.name);
       self.addForm.documentdetail = {
         fileId: res.data.fileId,
         fileName: file.name,
@@ -389,18 +571,34 @@ export default {
         fileSize: file.size
       };
     },
+    thumbnailVal(val) {
+      const self = this.$refs.findex;
+      self.addForm.documentdetail.thumbnail = val;
+    },
+    splitFileName(text) {
+      var pattern = /\.{1}[a-z]{1,}$/;
+      if (pattern.exec(text) !== null) {
+        return text.slice(0, pattern.exec(text).index);
+      } else {
+        return text;
+      }
+    },
     handleFolderName(obj) {
       const self = this.$refs.findex;
+      this.uid = "";
       self.formInline.folderId = obj.id;
+      self.addForm.folderId = obj.id;
+      self.addForm.folderName = obj.name;
+      this.treeObj = obj;
       self.clickQuery();
     },
     currentChange(val, currentObj) {
-      this.uid = val;
       this.currentObj = currentObj;
     },
     powerBtn() {
       if (this.uid) {
         this.powerDialogVisible = true;
+        this.listUserByDocId(this.uid);
       } else {
         this.$message({
           message: "您没有选中任何数据项,请选中后再操作！",
@@ -439,16 +637,18 @@ export default {
           }
         )
           .then(async () => {
-            window.location.href =
-              UPLOAD_FILE_DOWNLOAD + this.currentObj.fileId;
             const res = await resDdcDocumentCheckOut(this.uid);
             if (res.data.code === IS_OK) {
+              window.location.href =
+                UPLOAD_FILE_DOWNLOAD + this.currentObj.fileId;
               setTimeout(() => {
                 this.$message({
                   type: "success",
                   message: "操作成功"
                 });
               }, 500);
+              this.$refs.findex.clickQuery();
+            } else {
               this.$refs.findex.clickQuery();
             }
           })
@@ -458,6 +658,7 @@ export default {
           message: "您没有选中任何数据项,请选中后再操作！",
           type: "warning"
         });
+        this.$refs.findex.clickQuery();
       }
     },
     // 文档释放
@@ -482,6 +683,8 @@ export default {
                 });
               }, 500);
               this.$refs.findex.clickQuery();
+            } else {
+              this.$refs.findex.clickQuery();
             }
           })
           .catch(() => {});
@@ -490,6 +693,7 @@ export default {
           message: "您没有选中任何数据项,请选中后再操作！",
           type: "warning"
         });
+        this.$refs.findex.clickQuery();
       }
     },
     // 锁定文档
@@ -514,6 +718,8 @@ export default {
                 });
               }, 500);
               this.$refs.findex.clickQuery();
+            } else {
+              this.$refs.findex.clickQuery();
             }
           })
           .catch(() => {});
@@ -522,6 +728,7 @@ export default {
           message: "您没有选中任何数据项,请选中后再操作！",
           type: "warning"
         });
+        this.$refs.findex.clickQuery();
       }
     },
     // 解锁文档
@@ -546,6 +753,8 @@ export default {
                 });
               }, 500);
               this.$refs.findex.clickQuery();
+            } else {
+              this.$refs.findex.clickQuery();
             }
           })
           .catch(() => {});
@@ -554,6 +763,7 @@ export default {
           message: "您没有选中任何数据项,请选中后再操作！",
           type: "warning"
         });
+        this.$refs.findex.clickQuery();
       }
     },
     // 文档检入事件
@@ -574,6 +784,7 @@ export default {
           message: "您没有选中任何数据项,请选中后再操作！",
           type: "warning"
         });
+        this.$refs.findex.clickQuery();
       }
     },
     async documentCheckSubmitData(param) {
@@ -616,7 +827,7 @@ export default {
       if (res.data.code === IS_OK) {
         res.data.data.lockStatus
           ? (res.data.data.lockStatus = "已锁")
-          : (res.data.data.lockStatus = "没锁");
+          : (res.data.data.lockStatus = "正常");
         this.documentDetailsAddForm = res.data.data;
       }
     },
@@ -627,7 +838,7 @@ export default {
         if (res.data.code === IS_OK) {
           res.data.data.lockStatus
             ? (res.data.data.lockStatus = "已锁")
-            : (res.data.data.lockStatus = "没锁");
+            : (res.data.data.lockStatus = "正常");
           this.documentDetailsAddForm = res.data.data;
         }
       } else {
@@ -675,6 +886,8 @@ export default {
           });
           this.$refs.documentAddVersion.resetFields();
           this.documentAddVersionDialog = false;
+          //刷新页面
+          this.$refs.findex.clickQuery();
         }, 500);
       }
     },
@@ -697,6 +910,10 @@ export default {
           type: "warning"
         });
       }
+    },
+    // 文档移动
+    documentMvDocuments() {
+      this.documentMvDocumentsVisible = true;
     },
     // 文件记录
     documentdetail() {
@@ -748,7 +965,7 @@ export default {
     cursor: w-resize;
     background: #fff;
   }
-  
+
   .right {
     flex: 1;
     background: #fff;

@@ -10,12 +10,16 @@
     <el-form-item label="文件">
       <big-files ref="bigFiles2" @file-success="fileCheckInSuccess"></big-files>
     </el-form-item>
-    <el-form-item label="版本描述" prop="docDesc">
-      <el-input v-model="documentCheckAddForm.docDesc" :rows="5" type="textarea"></el-input>
+
+    <el-form-item label="文档描述" prop="docDesc">
+      <el-input
+        v-model="documentCheckAddForm.docDesc"
+        :rows="5"
+        type="textarea"
+      ></el-input>
     </el-form-item>
   </el-form>
 </template>
-
 <script>
 import BigFiles from "../../components/BigFiles/BigFiles.vue";
 export default {

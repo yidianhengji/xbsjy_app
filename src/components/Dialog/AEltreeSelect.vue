@@ -1,11 +1,11 @@
 <template>
   <div class="AEltreeSelect" :id="id">
     <el-row class="AEltreeSelect__input">
-      <el-col :span="22">
+      <el-col :span="!noBtn ? 22 : 24">
         <el-input :value="name" readonly></el-input>
       </el-col>
-      <el-col :span="2" style="text-align: right;">
-        <el-button type="primary" @click="pick">{{btnText}}</el-button>
+      <el-col :span="2" v-if="!noBtn" style="text-align: right;">
+        <el-button type="primary" @click="pick">{{ btnText }}</el-button>
       </el-col>
     </el-row>
 
@@ -18,6 +18,7 @@
         :default-expand-all="defaultEexpandAll"
         :value="value"
         ref="tree"
+        :render-content="renderContent"
         @labelName="handleName"
       ></treeform-no-interface>
       <template slot="footer">
@@ -30,7 +31,7 @@
 
 <script type="text/jsx">
 import AElDialog from "./AElDialog";
-import TreeformNoInterface from "../Tree/treeformNoInterface";
+import TreeformNoInterface from "../Tree/treeformNoInterface.vue";
 import { Random } from "../../util/commonUtils";
 
 /**
@@ -72,7 +73,13 @@ export default {
     },
     value: {
       type: [String, Number, Array]
-    }
+    },
+    noBtn: {
+      type: Boolean,
+      default: false
+    },
+    dataCallback: Function,
+    renderContent: Function
   },
   methods: {
     pick() {
@@ -81,6 +88,9 @@ export default {
     submit() {
       this.$emit("update:value", this.$refs.tree.getValue());
       this.pick();
+      if (this.dataCallback) {
+        this.dataCallback(this.$refs.tree.current);
+      }
     },
     handleName(name) {
       this.name = name;

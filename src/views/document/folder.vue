@@ -5,10 +5,11 @@
       <div class="left-body" v-loading="projectLoading">
         <left-tree
           :treedata="projectDataTree"
-          label="projectName"
+          label="name"
           :single="true"
-          node-key="projectId"
+          node-key="id"
           ref="tree"
+          :render-content="renderContent"
           @nodeClick="handleProjectName"
         ></left-tree>
       </div>
@@ -16,20 +17,24 @@
     <div class="y-hander"></div>
     <div class="right">
       <div class="app-main-wrapper">
+        <!-- :query-controller="queryController" -->
         <form-base
           ref="findex"
           primaryId="folderId"
-          rowKey="folderId"
-          query-interface="ddc/folder/page"
+          query-interface="ddc/folder/pageByUpFolderId"
           query-one-interface="ddc/folder/info"
           save-interface="ddc/folder/save"
           update-interface="ddc/folder/update"
           delete-interface="ddc/folder/delete"
-          :query-controller="queryController"
           @current-change="currentChange"
+          :add-controller="addController"
+          :addControllerCallback="addControllerCallback"
+          :deleteControllerCallback="addControllerCallback"
           :columns="columns"
+          :uid.sync="uid"
           :rules="rules"
-          :nodePage="false"
+          noViewBtn
+          deleteInfo="该目录下可能存在子目录或文档，是否确定删除？"
           :reset-form="resetForm"
         >
           <template slot="searchForm" slot-scope="data">
@@ -45,29 +50,27 @@
           <template slot="toolbar">
             <el-dropdown style="margin-left: 5px;">
               <el-button type="primary" size="small">
-                更多操作<i class="el-icon-arrow-down el-icon--right"></i>
+                更多操作
+                <i class="el-icon-arrow-down el-icon--right"></i>
               </el-button>
               <el-dropdown-menu slot="dropdown">
+                <el-dropdown-item @click.native="copyBtn">复制</el-dropdown-item>
                 <el-dropdown-item @click.native="powerBtn">权限</el-dropdown-item>
+                <el-dropdown-item @click.native="workEnvironmentBtn">工作环境</el-dropdown-item>
                 <el-dropdown-item @click.native="logBtn">操作日志</el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
           </template>
           <template slot="add" slot-scope="data">
-            <el-form-item label="所属项目" prop="projectId">
-              <a-eltree-select
-                :treedata.sync="projectDataTree"
-                label="projectName"
-                node-key="projectId"
-                :defaultExpandAll="false"
-                :value.sync="data.addForm.projectId"
-              ></a-eltree-select>
+            <el-form-item label="所属项目" prop="projectName">
+              <el-input v-model="data.addForm.projectName" readonly></el-input>
             </el-form-item>
             <el-form-item label="上级目录" prop="upFolderId">
               <a-eltree-select
-                :treedata.sync="dataArray"
-                label="folderName"
-                node-key="folderId"
+                :treedata.sync="projectDataTree"
+                label="name"
+                node-key="id"
+                noBtn
                 :defaultExpandAll="false"
                 :value.sync="data.addForm.upFolderId"
               ></a-eltree-select>
@@ -89,36 +92,62 @@
           title="目录权限"
           :uid="uid"
           primaryId="folderId"
+          deleteAuthUsers="ddc/folderauthority/deleteAuthUsers"
           :codeName="codeName"
+          :user-list="authusers"
           save-interface="ddc/folderauthority/saveOrUpdate"
+          :checkDataList="checkDataList"
           query-one-interface="ddc/folderauthority/queryFolAuthOfUser"
+          type="folder"
         ></a-e-power>
       </div>
     </div>
     <log v-if="logDialogVisible" :visible.sync="logDialogVisible" :uid="uid"></log>
+    <folder-copy
+      v-if="copyVisible"
+      :visible.sync="copyVisible"
+      category="1"
+      :uid="uid"
+      :renderContent="renderContent"
+      @queryBtn="queryBtn"
+    ></folder-copy>
+    <WorkEnvironment
+      title="所属工作空间"
+      v-if="workEnvironmentVisible"
+      :visible.sync="workEnvironmentVisible"
+      :workspaceObj="workspaceObj"
+    ></WorkEnvironment>
   </div>
 </template>
 
 <script type="text/jsx">
 import FormBase from "../../components/FormBase.vue";
-import AEltreeSelect from "../../components/Dialog/AEltreeSelect";
-import AEPower from "../../components/Dialog/AEPower";
-import LeftTree from "../../components/Tree/leftTree";
+import AEltreeSelect from "../../components/Dialog/AEltreeSelect.vue";
+import AEPower from "@/components/Dialog/AEPower";
+import LeftTree from "../../components/Tree/leftTree.vue";
 import Log from "../../components/Log/Log.vue";
-import { resDdcFolderQueryTree, resDdcProjectQueryTree } from "../../api/ddc";
+import {
+  resDdcProjectPageByUpFolderId,
+  resDdcFolderQueryProFolTree,
+  folderListAuthUsers
+} from "../../api/ddc";
 import { IS_OK } from "../../api/path";
 import { FOLDER_POWER } from "../../util/constListCode";
 import { mixinMethodsDrag } from "../../mixin/mixinMethodsDrag";
-
+import FolderCopy from "./folderCopy.vue";
+import WorkEnvironment from "../base/workEnvironment.vue";
+import { mixinFolder } from "./folder";
 export default {
   name: "folder",
-  mixins: [mixinMethodsDrag],
+  mixins: [mixinMethodsDrag, mixinFolder],
   components: {
     FormBase,
     LeftTree,
     AEltreeSelect,
     AEPower,
-    Log
+    Log,
+    FolderCopy,
+    WorkEnvironment
   },
   data() {
     return {
@@ -135,7 +164,7 @@ export default {
         folderName: [
           { required: true, message: "请输入目录名称", trigger: "blur" }
         ],
-        projectId: [
+        projectName: [
           { required: true, message: "请选择所属项目", trigger: "change" }
         ]
       },
@@ -151,13 +180,29 @@ export default {
           align: "left"
         },
         {
+          prop: "projectName",
+          label: "所属项目",
+          align: "left"
+        },
+        {
           prop: "folderDesc",
           label: "目录描述",
           align: "left"
         }
       ],
       isTrue: false,
-      startX: 0
+      startX: 0,
+      authusers: [],
+      treeObj: {},
+      copyVisible: false,
+      workEnvironmentVisible: false,
+      workspaceObj: {
+        projectId: "0",
+        folderId: "0",
+        documentId: "0",
+        configType: "2"
+      },
+      valObj: {}
     };
   },
   created() {
@@ -167,50 +212,132 @@ export default {
     this.$nextTick(() => {
       this.$refs.findex.formInline = {
         keyword: "",
-        projectId: "all"
+        projectId: "",
+        category: 1,
+        folderId: ""
       };
     });
   },
   methods: {
+    workEnvironmentBtn() {
+      if (this.uid) {
+        this.workspaceObj.projectId = this.valObj.projectId;
+        this.workspaceObj.folderId = this.valObj.folderId;
+        this.workEnvironmentVisible = true;
+      } else {
+        this.$message({
+          message: "您没有选中任何数据项,请选中后再操作！",
+          type: "warning"
+        });
+      }
+    },
+    addControllerCallback() {
+      this.getProjectDataList();
+      this.$refs.findex.clickQuery();
+      this.uid = "";
+      this.valObj = {};
+    },
+    renderContent(h, { node, data }) {
+      return (
+        <span class="custom-tree-node" style="font-size: 14px; color: #606266;">
+          <span
+            class={data.type == "project" ? "fa fa-archive" : "fa fa-folder"}
+            style="margin-right: 5px;"
+          ></span>
+          <span>{node.label}</span>
+        </span>
+      );
+    },
+    queryBtn() {
+      this.addControllerCallback();
+    },
+    // 复制
+    copyBtn() {
+      if (this.uid) {
+        this.copyVisible = true;
+      } else {
+        this.$message({
+          message: "您没有选中任何数据项,请选中后再操作！",
+          type: "warning"
+        });
+      }
+    },
     resetForm(self) {
       self.addForm = {
         projectId: "",
+        projectName: "",
         upFolderId: "",
         folderName: "",
         orderId: 0,
-        folderDesc: ""
+        folderDesc: "",
+        category: 1
       };
+      if (this.treeObj.projectId) {
+        self.addForm.projectId = this.treeObj.projectId;
+        self.addForm.projectName = this.treeObj.projectName;
+        if (this.treeObj.type != "project") {
+          self.addForm.upFolderId = this.treeObj.id;
+        }
+      }
       this.selectIndex = null;
     },
     async queryController(self, params) {
       if (JSON.stringify(params) == "{}") {
         params = {
-          projectId: "all"
+          projectId: "all",
+          category: 1,
+          keyword: "",
+          folderId: ""
         };
       }
-      const res = await resDdcFolderQueryTree(params);
+      const res = await resDdcProjectPageByUpFolderId(params);
       if (res.data.code === IS_OK) {
-        self.dataArray = res.data.data;
-        this.dataArray = res.data.data;
+        self.dataArray = res.data.data.list;
+        this.dataArray = res.data.data.list;
       }
     },
     async getProjectDataList() {
-      const res = await resDdcProjectQueryTree({});
+      const res = await resDdcFolderQueryProFolTree({ category: 1 });
       if (res.data.code === IS_OK) {
         this.projectDataTree = res.data.data;
         this.projectLoading = false;
+        if (this.treeObj.id) {
+          this.$refs.tree.setCurrentKey(this.treeObj.id);
+        }
+      }
+    },
+    async listAuthUsers(folderId) {
+      const res = await folderListAuthUsers(folderId);
+      if (res.data.code === IS_OK) {
+        this.authusers = res.data.data;
       }
     },
     handleProjectName(obj) {
       const self = this.$refs.findex;
-      self.formInline.projectId = obj.projectId;
+      this.uid = "";
+      self.formInline.folderId = obj.id;
+      self.addForm.projectId = obj.projectId;
+      self.addForm.projectName = obj.projectName;
+      this.treeObj = obj;
       self.clickQuery();
     },
-    currentChange(val) {
+    addController(self) {
+      if (!self.addForm.projectId) {
+        this.$message({
+          message: "请选择项目分类！！",
+          type: "warning"
+        });
+        return false;
+      }
+      return true;
+    },
+    currentChange(val, valObj) {
       this.uid = val;
+      this.valObj = valObj;
     },
     powerBtn() {
       if (this.uid) {
+        this.listAuthUsers(this.uid);
         this.powerDialogVisible = true;
       } else {
         this.$message({

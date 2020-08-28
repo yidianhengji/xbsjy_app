@@ -59,6 +59,18 @@
     </el-row>
     <el-row>
       <el-col :span="12">
+        <el-form-item label="检出者">
+          <el-input v-model="documentDetails.checkoutUserName"></el-input>
+        </el-form-item>
+      </el-col>
+      <el-col :span="12">
+        <el-form-item label="检出时间">
+          <el-input v-model="documentDetails.checkoutTime"></el-input>
+        </el-form-item>
+      </el-col>
+    </el-row>
+    <el-row>
+      <el-col :span="12">
         <el-form-item label="锁定者">
           <el-input v-model="documentDetails.lockUserId"></el-input>
         </el-form-item>
@@ -70,10 +82,18 @@
       </el-col>
     </el-row>
     <el-form-item label="文档描述">
-      <el-input v-model="documentDetails.docDesc" :rows="5" type="textarea"></el-input>
+      <el-input
+        v-model="documentDetails.docDesc"
+        :rows="5"
+        type="textarea"
+      ></el-input>
     </el-form-item>
     <el-form-item label="版本描述">
-      <el-input v-model="documentDetails.versionDesc" :rows="5" type="textarea"></el-input>
+      <el-input
+        v-model="documentDetails.versionDesc"
+        :rows="5"
+        type="textarea"
+      ></el-input>
     </el-form-item>
   </el-form>
 </template>

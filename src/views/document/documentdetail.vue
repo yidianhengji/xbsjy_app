@@ -25,7 +25,7 @@
 import Table from "../../components/table.vue";
 import AElDialog from "../../components/Dialog/AElDialog.vue";
 import { resDdcDocumentdetailQueryBydocumentId } from "../../api/ddc";
-import { IS_OK } from "../../api/path";
+import { IS_OK, UPLOAD_FILE_DOWNLOAD } from "../../api/path";
 export default {
   name: "Log",
   props: {
@@ -67,23 +67,53 @@ export default {
         {
           prop: "description",
           align: "center",
-          label: "操作描述"
+          label: "检入描述"
+        },
+        {
+          prop: "",
+          align: "center",
+          label: "操作",
+          render: (h, param) => {
+            return (
+              <div>
+                <el-button
+                  type="text"
+                  icon="el-icon-download"
+                  onClick={this.download.bind(this, param.row.fileId)}
+                >
+                  下载
+                </el-button>
+              </div>
+            );
+          }
         }
       ],
       tableLoading: false
     };
   },
+  created() {
+    this.query();
+  },
   methods: {
     async query() {
       this.tableLoading = true;
-      const res = await resDdcDocumentdetailQueryBydocumentId(this.uid);
-      if (res.data.code === IS_OK) {
-        this.dataArray = res.data.data;
-        this.tableLoading = false;
+      if (this.uid) {
+        const res = await resDdcDocumentdetailQueryBydocumentId(this.uid);
+        if (res.data.code === IS_OK) {
+          this.dataArray = res.data.data;
+          this.tableLoading = false;
+        }
       }
     },
     beforeClose() {
       this.$emit("update:visible", false);
+    },
+    download(fileId) {
+      window.location.href = UPLOAD_FILE_DOWNLOAD + fileId;
+      this.$message({
+        type: "success",
+        message: "下载成功"
+      });
     }
   },
   watch: {

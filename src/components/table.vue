@@ -18,7 +18,12 @@
       :height="height == 0 ? 500 : height"
     >
       <el-table-column type="index" width="50" align="center"></el-table-column>
-      <el-table-column v-if="isSelection" type="selection" :width="40" align="center"></el-table-column>
+      <el-table-column
+        v-if="isSelection"
+        type="selection"
+        :width="40"
+        align="center"
+      ></el-table-column>
       <el-table-column
         v-for="(column, index) in columns"
         :label="column.label"
@@ -42,7 +47,7 @@
         </template>
 
         <template slot="header">
-          <span>{{column.label}}</span>
+          <span>{{ column.label }}</span>
         </template>
       </el-table-column>
 
@@ -89,7 +94,8 @@ export default {
     "rowKey",
     "highlightCurrentRow",
     "noresize",
-    "defaultExpandAll"
+    "defaultExpandAll",
+    "noFormInlineBase"
   ],
   data() {
     return {
@@ -180,4 +186,3 @@ export default {
 
 }
 </style>
-

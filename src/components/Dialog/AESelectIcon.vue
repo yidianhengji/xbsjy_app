@@ -5,24 +5,24 @@
         <el-input :value="value" readonly></el-input>
       </el-col>
       <el-col :span="2" style="text-align: right;">
-        <el-button type="primary" @click="pick">{{btnText}}</el-button>
+        <el-button type="primary" @click="pick">{{ btnText }}</el-button>
       </el-col>
     </el-row>
 
     <a-el-dialog :visible.sync="show" :title="title" :width="width">
       <div class="icon-list">
-        <div class="page" v-for="(item,index) in iconList" :key="index">
-          <h2 class="page-header">{{item.name}}</h2>
+        <div class="page" v-for="(item, index) in iconList" :key="index">
+          <h2 class="page-header">{{ item.name }}</h2>
           <ul class="page-body">
             <li
-              v-for="(i,k) in item.list"
+              v-for="(i, k) in item.list"
               :key="k"
               @click="handleClick(i)"
               @dblclick="handleDbClick(i)"
-              :class="isActive==i ? 'active' : ''"
+              :class="isActive == i ? 'active' : ''"
             >
               <i :class="i"></i>
-              {{i.substr(6)}}
+              {{ i.substr(6) }}
             </li>
           </ul>
         </div>

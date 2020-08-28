@@ -1,9 +1,12 @@
 <template>
   <div>
-    <el-submenu v-if="item.children && item.children.length>0" :index="String(item.menuId)">
+    <el-submenu
+      v-if="item.children && item.children.length > 0"
+      :index="String(item.menuId)"
+    >
       <template slot="title">
         <i :class="item.pictureUrl"></i>
-        <span v-show="!isNest">{{item.menuName}}</span>
+        <span v-show="!isNest">{{ item.menuName }}</span>
       </template>
       <sidebar-item
         v-for="child in item.children"
@@ -14,7 +17,7 @@
     </el-submenu>
     <el-menu-item v-else :index="item.pageUrl" :key="item.menuId">
       <i :class="item.pictureUrl"></i>
-      <span slot="title">{{item.menuName}}</span>
+      <span slot="title">{{ item.menuName }}</span>
     </el-menu-item>
   </div>
 </template>
@@ -35,5 +38,4 @@ export default {
 };
 </script>
 
-<style>
-</style>
+<style></style>

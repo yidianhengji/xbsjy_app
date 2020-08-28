@@ -1,6 +1,6 @@
 <template>
   <div class="form-base" id="formBase" ref="formBase" v-loading="formLoading">
-    <div class="form-inline-base" ref="formInlineBase">
+    <div class="form-inline-base" ref="formInlineBase" v-if="!noFormInlineBase">
       <div class="form-inline-bar">
         <el-form
           :inline="true"
@@ -8,6 +8,7 @@
           ref="formInline"
           size="small"
           class="demo-form-inline"
+          v-if="!noSearchForm"
         >
           <slot name="searchForm" :formInline="formInline"></slot>
           <el-form-item v-if="JSON.stringify(formInline) !== '{}'">
@@ -23,26 +24,36 @@
           size="small"
           v-if="!noAddBtn"
           @click="add"
-        >{{addBtnText}}</el-button>
+        >{{ addBtnText }}</el-button>
         <el-button
           icon="el-icon-edit"
           type="primary"
           size="small"
           v-if="!noEditBtn"
           @click="edit"
-        >{{editBtnText}}</el-button>
+        >{{ editBtnText }}</el-button>
         <el-button
           icon="el-icon-delete"
           type="danger"
           size="small"
           v-if="!noDeleteBtn"
           @click="del"
-        >{{deleteBtnText}}</el-button>
+        >{{ deleteBtnText }}</el-button>
+        <el-button
+          icon="el-icon-view"
+          type="primary"
+          size="small"
+          v-if="!noViewBtn"
+          @click="view"
+        >{{ viewBtnText }}</el-button>
         <slot name="toolbar"></slot>
       </div>
     </div>
 
-    <div class="form-table-list">
+    <div
+      class="form-table-list"
+      :style="{height: !noFormInlineBase ? 'calc(100% - 78px)': 'calc(100% - 0px)'}"
+    >
       <vtable
         style="width: 100%"
         ref="vTable"
@@ -60,6 +71,7 @@
         :default-expand-all="defaultExpandAll"
         :rowKey="rowKey"
         :height="height"
+        :noFormInlineBase="noFormInlineBase"
       ></vtable>
     </div>
 
@@ -89,10 +101,11 @@
 </template>
 
 <script>
-import Table from "./table";
-import AElDialog from "./Dialog/AElDialog";
+import Table from "./table.vue";
+import AElDialog from "./Dialog/AElDialog.vue";
 import request from "@/api/config";
 import { API_PATH, IS_OK } from "../api/path";
+
 export default {
   name: "FormBase",
   components: {
@@ -115,9 +128,15 @@ export default {
     queryOneController: Function, // 查询单个控制
     clearController: Function, // clear清除控制
     addController: Function, // 点击按钮前判断
+    beforeUpdateBtn: Function, // 点击修改按钮前
+    beforeDeleteBtn: Function, // 点击删除按钮前
+    beforeViewBtn: Function, // 点击查看按钮前
     resetForm: Function,
+    addControllerCallback: Function, // 新增或修改成功后的回调
+    deleteControllerCallback: Function, // 删除成功后的回调
     columns: Array, // 表格头部信息
     primaryId: String, // 主键id名称
+    deleteInfo: String,
     nodePage: {
       // 是否分页
       type: Boolean,
@@ -146,6 +165,10 @@ export default {
       type: String,
       default: "修改"
     },
+    viewBtnText: {
+      type: String,
+      default: "详情"
+    },
     deleteBtnText: {
       type: String,
       default: "删除"
@@ -158,11 +181,30 @@ export default {
       type: Boolean,
       default: false
     },
+    noViewBtn: {
+      type: Boolean,
+      default: false
+    },
+    noResetPassword: {
+      type: Boolean,
+      default: true
+    },
     noDeleteBtn: {
       type: Boolean,
       default: false
     },
     isDefaultQuery: {
+      type: Boolean,
+      default: false
+    },
+    uid: {
+      type: String
+    },
+    noSearchForm: {
+      type: Boolean,
+      default: false
+    },
+    noFormInlineBase: {
       type: Boolean,
       default: false
     }
@@ -177,16 +219,17 @@ export default {
       dataArray: [], // 查询的数据集合
       formInline: {}, // 搜索框查询条件
       height: 0,
-      uid: "", // 表格单选的数据对象
+      // uid: "", // 表格单选的数据对象
       dialogshow: false,
       saveloadding: false,
       disabled: false,
       title: "新增",
-      addForm: {}
+      addForm: {},
+      btnType: "add"
     };
   },
   created() {
-    if(!this.isDefaultQuery) {
+    if (!this.isDefaultQuery) {
       this.query();
     }
     if (this.resetForm) {
@@ -206,8 +249,6 @@ export default {
       this.$refs.formInline.resetFields();
       if (this.clearController) {
         this.clearController(this);
-      } else {
-        this.query();
       }
     },
     // 列表查询事件
@@ -231,8 +272,13 @@ export default {
           "GET"
         );
         if (res.data.code === IS_OK) {
-          this.dataArray = res.data.data.list;
-          this.total = res.data.data.totalCount;
+          if (res.data.data && res.data.data.list) {
+            this.dataArray = res.data.data.list;
+            this.total = res.data.data.totalCount;
+          } else {
+            this.dataArray = [];
+            this.total = 0;
+          }
           if (this.uid) {
             this.dataArray.map(item => {
               if (item[this.primaryId] === this.uid) {
@@ -248,38 +294,95 @@ export default {
     },
     // 新增
     add() {
+      this.btnType = "add";
+      this.$emit("update:btn-operation-type", "add");
       if (this.addController) {
         let next = this.addController(this);
         if (next) {
-          this.$emit("update:btn-operation-type", "add");
           this.reset();
           this.dialogshow = true;
           this.title = "新增";
-          this.uid = "";
         }
       } else {
-        this.$emit("update:btn-operation-type", "add");
-        this.reset();
         this.dialogshow = true;
         this.title = "新增";
-        this.uid = "";
       }
     },
     // 编辑
     async edit() {
+      this.btnType = "edit";
       this.title = "修改";
       this.$emit("update:btn-operation-type", "edit");
       if (this.uid) {
-        this.dialogshow = true;
-        const res = await request(
-          `${API_PATH}${this.queryOneInterface}/${this.uid}`,
-          null,
-          "GET"
-        );
-        if (res.data.code === IS_OK) {
-          this.addForm = res.data.data;
-          if (this.queryOneController) {
-            this.queryOneController(this);
+        if (this.beforeUpdateBtn) {
+          this.beforeUpdateBtn(this.uid).then(async obj => {
+            if (obj) {
+              this.dialogshow = true;
+              const res = await request(
+                `${API_PATH}${this.queryOneInterface}/${this.uid}`,
+                null,
+                "GET"
+              );
+              if (res.data.code === IS_OK) {
+                this.addForm = res.data.data;
+                if (this.queryOneController) {
+                  this.queryOneController(this);
+                }
+              }
+            }
+          });
+        } else {
+          this.dialogshow = true;
+          const res = await request(
+            `${API_PATH}${this.queryOneInterface}/${this.uid}`,
+            null,
+            "GET"
+          );
+          if (res.data.code === IS_OK) {
+            this.addForm = res.data.data;
+            if (this.queryOneController) {
+              this.queryOneController(this);
+            }
+          }
+        }
+      } else {
+        this.$message({
+          message: "您没有选中任何数据项,请选中后再操作！",
+          type: "warning"
+        });
+      }
+    },
+    async view() {
+      if (this.uid) {
+        if (this.beforeViewBtn) {
+          this.beforeViewBtn(this.uid).then(async obj => {
+            if (obj) {
+              this.dialogshow = true;
+              this.disabled = true;
+              this.title = "查看详情";
+              const res = await request(
+                `${API_PATH}${this.queryOneInterface}/${this.uid}`,
+                null,
+                "GET"
+              );
+              if (res.data.code === IS_OK) {
+                this.addForm = res.data.data;
+                this.disabled = true;
+              }
+            }
+          });
+        } else {
+          this.dialogshow = true;
+          this.disabled = true;
+          this.title = "查看详情";
+          const res = await request(
+            `${API_PATH}${this.queryOneInterface}/${this.uid}`,
+            null,
+            "GET"
+          );
+          if (res.data.code === IS_OK) {
+            this.addForm = res.data.data;
+            this.disabled = true;
           }
         }
       } else {
@@ -304,25 +407,61 @@ export default {
           this.dialogshow = false;
           this.reset();
           this.query();
+          this.$emit("update:uid", "");
+          if (this.deleteControllerCallback) {
+            this.deleteControllerCallback();
+          }
         }, 500);
       }
     },
     // 删除
     del() {
       if (this.uid) {
-        this.$confirm(
-          this.deleteMessage ? this.deleteMessage : "是否删除这条数据?",
-          "提示",
-          {
-            confirmButtonText: "确定",
-            cancelButtonText: "取消",
-            type: "warning"
+        if (this.beforeDeleteBtn) {
+          this.beforeDeleteBtn(this.uid).then(obj => {
+            if (obj) {
+              let info = "";
+              if (this.deleteInfo) {
+                info = this.deleteInfo;
+              } else {
+                info = "是否删除这条数据?";
+              }
+              this.$confirm(
+                this.deleteMessage ? this.deleteMessage : info,
+                "提示",
+                {
+                  confirmButtonText: "确定",
+                  cancelButtonText: "取消",
+                  type: "warning"
+                }
+              )
+                .then(() => {
+                  this.doDelete();
+                })
+                .catch(() => {});
+            }
+          });
+        } else {
+          let info = "";
+          if (this.deleteInfo) {
+            info = this.deleteInfo;
+          } else {
+            info = "是否删除这条数据?";
           }
-        )
-          .then(() => {
-            this.doDelete();
-          })
-          .catch(() => {});
+          this.$confirm(
+            this.deleteMessage ? this.deleteMessage : info,
+            "提示",
+            {
+              confirmButtonText: "确定",
+              cancelButtonText: "取消",
+              type: "warning"
+            }
+          )
+            .then(() => {
+              this.doDelete();
+            })
+            .catch(() => {});
+        }
       } else {
         this.$message({
           message: "您没有选中任何数据项,请选中后再操作！",
@@ -349,7 +488,7 @@ export default {
     },
     async submit(param) {
       this.saveloadding = true;
-      if (this.uid) {
+      if (this.btnType == "edit") {
         // 修改
         const res = await request(
           API_PATH + this.updateInterface,
@@ -365,11 +504,16 @@ export default {
             this.dialogshow = false;
             this.reset();
             this.query();
+            if (this.addControllerCallback) {
+              this.addControllerCallback();
+            }
           }, 500);
         } else {
           this.saveloadding = false;
         }
-      } else {
+      }
+      if (this.btnType == "add") {
+        this.$emit("update:uid", "");
         // 新增
         const res = await request(API_PATH + this.saveInterface, param, "POST");
         if (res.data.code === IS_OK) {
@@ -381,6 +525,9 @@ export default {
             this.dialogshow = false;
             this.reset();
             this.query();
+            if (this.addControllerCallback) {
+              this.addControllerCallback();
+            }
           }, 500);
         } else {
           this.saveloadding = false;
@@ -407,7 +554,7 @@ export default {
     },
     currentChange(val) {
       if (val) {
-        this.uid = val[this.primaryId];
+        this.$emit("update:uid", val[this.primaryId]);
         this.$emit("current-change", val[this.primaryId], val);
       }
     }
@@ -435,6 +582,7 @@ export default {
     box-shadow: 0px 0px 7px rgba(0, 0, 0, 0.2);
     display: flex;
     width: 100%;
+    margin-bottom: 10px;
 
     .form-inline-bar {
       flex: 1;
@@ -442,7 +590,6 @@ export default {
   }
 
   .form-table-list {
-    margin-top: 10px;
     height: calc(100% - 78px);
   }
 

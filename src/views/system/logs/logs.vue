@@ -6,11 +6,13 @@
       query-interface="base/log/page"
       :clear-controller="clearController"
       :columns="columns"
+      :uid.sync="uid"
       noAddBtn
       noEditBtn
       noDeleteBtn
+      noViewBtn
     >
-      <template slot="searchForm">
+      <template slot="searchForm" slot-scope="data">
         <el-form-item label="选择时间" prop="keyword">
           <el-date-picker
             v-model="valueData"
@@ -21,6 +23,13 @@
             @change="handelchange"
             :value-format="valueFormat"
           ></el-date-picker>
+        </el-form-item>
+        <el-form-item label="日志类型" prop="logType">
+          <el-select v-model="data.formInline.logType" size="small" clearable>
+            <el-option label="登录日志" value="登录日志"></el-option>
+            <el-option label="操作日志" value="操作日志"></el-option>
+            <el-option label="错误日志" value="错误日志"></el-option>
+          </el-select>
         </el-form-item>
       </template>
     </form-base>
@@ -36,6 +45,7 @@ export default {
   },
   data() {
     return {
+      uid: "",
       columns: [
         {
           prop: "logType",
@@ -69,7 +79,8 @@ export default {
         }
       ],
       valueFormat: "yyyy-MM-dd HH:mm:ss",
-      valueData: ""
+      valueData: "",
+      logType: ""
     };
   },
   mounted() {
@@ -77,7 +88,8 @@ export default {
       this.$refs.findex.formInline = {
         keyword: "",
         endTime: "",
-        startTime: ""
+        startTime: "",
+        logType: ""
       };
     });
   },
@@ -85,14 +97,17 @@ export default {
     handelchange(val) {
       this.$refs.findex.formInline = {
         startTime: val[0],
-        endTime: val[1]
+        endTime: val[1],
+        logType: this.logType
       };
     },
     clearController(that) {
       this.valueData = "";
+      this.logType = "";
       that.formInline = {
-        startTime: '',
-        endTime: ''
+        startTime: "",
+        endTime: "",
+        logType: ""
       };
       that.query();
     }

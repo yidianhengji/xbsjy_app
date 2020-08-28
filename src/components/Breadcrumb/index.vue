@@ -1,6 +1,8 @@
 <template>
   <el-breadcrumb class="app-breadcrumb" separator="/">
-    <el-breadcrumb-item v-for="(item, index) in arr" :key="index">{{item}}</el-breadcrumb-item>
+    <el-breadcrumb-item v-for="(item, index) in arr" :key="index">
+      {{ item }}
+    </el-breadcrumb-item>
   </el-breadcrumb>
 </template>
 
@@ -22,25 +24,29 @@ export default {
       this.getList(this.menus, name);
     },
     getList(data, name) {
-      data.map(item => {
-        if (item.pageUrl == name) {
-          this.arr.push(item.menuName);
-          this.getParentList(this.menus, item.upMenuId);
-        }
-        if (item.children && item.children.length > 0) {
-          this.getList(item.children, name);
-        }
-      });
+      if (data) {
+        data.map(item => {
+          if (item.pageUrl == name) {
+            this.arr.push(item.menuName);
+            this.getParentList(this.menus, item.upMenuId);
+          }
+          if (item.children && item.children.length > 0) {
+            this.getList(item.children, name);
+          }
+        });
+      }
     },
     getParentList(data, upMenuId) {
-      data.map(item => {
-        if (item.menuId == upMenuId) {
-          this.arr.unshift(item.menuName);
-        }
-        if (item.children && item.children.length > 0) {
-          this.getParentList(item.children, upMenuId);
-        }
-      });
+      if (data) {
+        data.map(item => {
+          if (item.menuId == upMenuId) {
+            this.arr.unshift(item.menuName);
+          }
+          if (item.children && item.children.length > 0) {
+            this.getParentList(item.children, upMenuId);
+          }
+        });
+      }
     }
   },
   watch: {

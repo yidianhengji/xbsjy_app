@@ -12,12 +12,18 @@
       :query-controller="queryController"
       :columns="columns"
       :rules="rules"
+      :uid.sync="uid"
       :nodePage="false"
       :reset-form="resetForm"
     >
       <template slot="searchForm" slot-scope="data">
         <el-form-item label="单位名称" prop="keyword">
-          <el-input v-model="data.formInline.keyword" size="small" placeholder="请输入单位名称" clearable></el-input>
+          <el-input
+            v-model="data.formInline.keyword"
+            size="small"
+            placeholder="请输入单位名称"
+            clearable
+          ></el-input>
         </el-form-item>
       </template>
       <template slot="add" slot-scope="data">
@@ -52,13 +58,20 @@
           <el-input v-model="data.addForm.postalcode"></el-input>
         </el-form-item>
         <el-form-item label="排序" prop="orderId">
-          <el-input-number v-model="data.addForm.orderId" :min="0"></el-input-number>
+          <el-input-number
+            v-model="data.addForm.orderId"
+            :min="0"
+          ></el-input-number>
         </el-form-item>
         <el-form-item label="是否启用" prop="isEnable">
           <el-switch v-model="data.addForm.isEnable"></el-switch>
         </el-form-item>
         <el-form-item label="备注" prop="remark">
-          <el-input v-model="data.addForm.remark" :rows="5" type="textarea"></el-input>
+          <el-input
+            v-model="data.addForm.remark"
+            :rows="5"
+            type="textarea"
+          ></el-input>
         </el-form-item>
       </template>
     </form-base>
@@ -84,6 +97,7 @@ export default {
           { required: true, message: "单位名称不能为空", trigger: "blur" }
         ]
       },
+      uid: "",
       columns: [
         {
           prop: "companyName",

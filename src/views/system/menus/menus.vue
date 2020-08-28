@@ -12,12 +12,19 @@
       :query-controller="queryController"
       :columns="columns"
       :rules="rules"
+      :uid.sync="uid"
       :nodePage="false"
       :reset-form="resetForm"
+      noViewBtn
     >
       <template slot="searchForm" slot-scope="data">
         <el-form-item label="菜单名称" prop="keyword">
-          <el-input v-model="data.formInline.keyword" size="small" placeholder="请输入菜单名称" clearable></el-input>
+          <el-input
+            v-model="data.formInline.keyword"
+            size="small"
+            placeholder="请输入菜单名称"
+            clearable
+          ></el-input>
         </el-form-item>
       </template>
       <template slot="add" slot-scope="data">
@@ -43,10 +50,15 @@
           ></a-eltree-select>
         </el-form-item>
         <el-form-item label="图标" prop="icon">
-          <a-eSelect-icon :value.sync="data.addForm.pictureUrl"></a-eSelect-icon>
+          <a-eSelect-icon
+            :value.sync="data.addForm.pictureUrl"
+          ></a-eSelect-icon>
         </el-form-item>
         <el-form-item label="排序" prop="orderId">
-          <el-input-number v-model="data.addForm.orderId" :min="0"></el-input-number>
+          <el-input-number
+            v-model="data.addForm.orderId"
+            :min="0"
+          ></el-input-number>
         </el-form-item>
       </template>
     </form-base>
@@ -68,6 +80,7 @@ export default {
   },
   data() {
     return {
+      uid: "",
       dataArray: [],
       rules: {
         menuName: [

@@ -12,12 +12,12 @@
       :fileStatusText="statusText"
       class="uploader-app"
     >
-      <div class="file-panel" v-if="fileList.length>0">
+      <div class="file-panel" v-if="fileList.length > 0">
         <ul class="el-upload-list el-upload-list--text">
           <li class="el-upload-list__item is-success" v-for="file in fileList" :key="file.id">
             <a class="el-upload-list__item-name">
               <i class="el-icon-document"></i>
-              {{file.name}}
+              {{ file.name }}
             </a>
             <label class="el-upload-list__item-status-label">
               <i class="el-icon-upload-success el-icon-circle-check"></i>
@@ -27,7 +27,7 @@
         </ul>
       </div>
       <uploader-btn
-        :id="'global-uploader-btn'+key"
+        :id="'global-uploader-btn' + key"
         class="global-uploader-btn"
         :attrs="attrs"
         ref="uploadBtn"
@@ -41,6 +41,7 @@ import request from "../../api/config";
 import SparkMD5 from "spark-md5";
 import { IS_OK } from "../../api/path";
 import { v4 as uuidv4 } from "uuid";
+let loading
 export default {
   name: "globalUploader",
   props: {
@@ -55,7 +56,7 @@ export default {
       key: uuidv4(),
       autoStart: false,
       options: {
-        target: "http://172.18.1.72:10010/api/filesystem/file/chunkUpload/vue",
+        target: "/api/filesystem/file/chunkUpload/vue",
         chunkSize: "20480000", //分片大小
         fileParameterName: "file",
         maxChunkRetries: 3, //最大自动失败重试上传次数
@@ -82,7 +83,8 @@ export default {
         uploading: "上传中",
         paused: "暂停中",
         waiting: "等待中"
-      }
+      },
+      loading: null
     };
   },
   methods: {
@@ -115,6 +117,12 @@ export default {
       } else {
         this.fileList.push(file);
       }
+      loading = this.$loading({
+        lock: true,
+        text: "文件正在上传中",
+        spinner: "el-icon-loading",
+        background: "rgba(0, 0, 0, 0.7)"
+      });
       let fileNameCode = SparkMD5.ArrayBuffer.hash(file.name);
       this.checkFileExist(fileNameCode);
       this.$emit("file-change", file);
@@ -126,6 +134,7 @@ export default {
     onFileSuccess(rootFile, file, response) {
       let res = JSON.parse(response);
       this.$emit("file-success", file, res);
+      loading.close();
       if (res.code !== IS_OK) {
         this.$message({ message: res.msg, type: "error" });
         return;

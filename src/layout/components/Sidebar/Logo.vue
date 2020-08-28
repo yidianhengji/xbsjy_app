@@ -2,13 +2,20 @@
   <div class="sidebar-logo-container">
     <div class="sidebar-logo-link">
       <img class="sidebar-logo" src="../../../assets/logo.png" />
-      <h1 class="sidebar-title">数字化设计协同管理平台</h1>
+      <h1 class="sidebar-title">{{project}}</h1>
     </div>
   </div>
 </template>
 
 <script>
-export default {};
+import { PROJECT_NAME } from "../../../api/path";
+export default {
+  data() {
+    return {
+      project: PROJECT_NAME
+    };
+  }
+};
 </script>
 
 <style lang="stylus" scoped>

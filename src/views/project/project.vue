@@ -14,7 +14,7 @@
       :reset-controller="resetController"
       :columns="columns"
       :rules="rules"
-      :nodePage="false"
+      :uid.sync="uid"
       :reset-form="resetForm"
     >
       <template slot="searchForm" slot-scope="data">
@@ -25,16 +25,18 @@
       <template slot="toolbar">
         <el-dropdown style="margin-left: 5px;">
           <el-button type="primary" size="small">
-            更多操作<i class="el-icon-arrow-down el-icon--right"></i>
+            更多操作
+            <i class="el-icon-arrow-down el-icon--right"></i>
           </el-button>
           <el-dropdown-menu slot="dropdown">
             <el-dropdown-item @click.native="powerBtn">权限</el-dropdown-item>
+            <el-dropdown-item @click.native="workEnvironmentBtn">工作环境</el-dropdown-item>
             <el-dropdown-item @click.native="logBtn">操作日志</el-dropdown-item>
           </el-dropdown-menu>
         </el-dropdown>
       </template>
       <template slot="add" slot-scope="data">
-        <el-form-item label="上级项目" prop="upprojectId">
+        <!-- <el-form-item label="上级项目" prop="upprojectId">
           <a-eltree-select
             :treedata.sync="dataArray"
             label="projectName"
@@ -42,7 +44,7 @@
             :defaultExpandAll="false"
             :value.sync="data.addForm.upprojectId"
           ></a-eltree-select>
-        </el-form-item>
+        </el-form-item>-->
         <el-form-item label="项目编号" prop="projectCode">
           <el-input v-model="data.addForm.projectCode"></el-input>
         </el-form-item>
@@ -106,7 +108,7 @@
         <div
           v-if="markers"
           style="float: left;color: #333;"
-        >经度：{{markers.position[0]}} 纬度：{{markers.position[1]}}</div>
+        >经度：{{ markers.position[0] }} 纬度：{{ markers.position[1] }}</div>
         <el-button type="primary" size="mini" @click="mapSubmit">确定</el-button>
         <el-button type="info" size="mini" @click="mapClear">清除</el-button>
         <el-button type="default" size="mini" @click="mapClose">取消</el-button>
@@ -118,29 +120,40 @@
       title="项目权限"
       :uid="uid"
       primaryId="projectId"
+      :user-list="authusers"
       :codeName="codeName"
+      delete-auth-users="ddc/projectauthority/deleteAuthUsers"
       save-interface="ddc/projectauthority/save"
       query-one-interface="ddc/projectauthority/queryProAuthOfUser"
+      :checkDataList="checkDataList"
+      type="project"
     ></a-e-power>
 
     <log v-if="logDialogVisible" :visible.sync="logDialogVisible" :uid="uid"></log>
+    <WorkEnvironment
+      title="项目工作空间"
+      v-if="workEnvironmentVisible"
+      :visible.sync="workEnvironmentVisible"
+      :workspaceObj="workspaceObj"
+    ></WorkEnvironment>
   </div>
 </template>
 
 <script type="text/jsx">
+import VueAMap from "vue-amap";
+import { v4 as uuidv4 } from "uuid";
 import FormBase from "../../components/FormBase.vue";
-import AEltreeSelect from "../../components/Dialog/AEltreeSelect.vue";
 import AElDialog from "../../components/Dialog/AElDialog.vue";
 import AEPower from "../../components/Dialog/AEPower.vue";
 import FileMany from "../../components/File/FileMany.vue";
 import Log from "../../components/Log/Log.vue";
-import { resDdcProjectQueryTree } from "../../api/ddc";
+import { resDdcProjectQueryTree, proListAuthUsers } from "../../api/ddc";
+import { resBaseDicNameByDicCode } from "../../api";
 import { IS_OK } from "../../api/path";
-import VueAMap from "vue-amap";
 import { PROJECT_TYPE, PROJECT_POWER } from "../../util/constListCode";
 import { KEY, PLUGIN, VERSION } from "../../util/mapConfig";
-import { resBaseDicNameByDicCode } from "../../api";
-import { v4 as uuidv4 } from "uuid";
+import WorkEnvironment from "../base/workEnvironment.vue";
+import { mixinProject } from "./project";
 VueAMap.initAMapApiLoader({
   key: KEY,
   plugin: PLUGIN,
@@ -148,13 +161,14 @@ VueAMap.initAMapApiLoader({
 });
 export default {
   name: "project",
+  mixins: [mixinProject],
   components: {
     FormBase,
     AElDialog,
-    AEltreeSelect,
     AEPower,
     FileMany,
-    Log
+    Log,
+    WorkEnvironment
   },
   data() {
     return {
@@ -174,6 +188,7 @@ export default {
       },
       mapDialogVisible: false,
       powerDialogVisible: false,
+      workEnvironmentVisible: false,
       codeName: PROJECT_POWER,
       dataArray: [],
       projectTypeList: [],
@@ -197,7 +212,7 @@ export default {
           width: 300
         },
         {
-          prop: "projectType",
+          prop: "proTypeName",
           label: "项目类型",
           align: "left"
         },
@@ -225,13 +240,15 @@ export default {
           prop: "designTechnicaldirector",
           label: "设计单位技术负责人",
           align: "left"
-        },
-        {
-          prop: "projectDesc",
-          label: "项目描述",
-          align: "left"
         }
-      ]
+      ],
+      authusers: [],
+      workspaceObj: {
+        projectId: "0",
+        folderId: "0",
+        documentId: "0",
+        configType: "1"
+      }
     };
   },
   created() {
@@ -245,6 +262,17 @@ export default {
     });
   },
   methods: {
+    workEnvironmentBtn() {
+      if (this.uid) {
+        this.workspaceObj.projectId = this.uid;
+        this.workEnvironmentVisible = true;
+      } else {
+        this.$message({
+          message: "您没有选中任何数据项,请选中后再操作！",
+          type: "warning"
+        });
+      }
+    },
     resetForm(self) {
       self.addForm = {
         upprojectId: "",
@@ -259,11 +287,23 @@ export default {
         latitude: "",
         orderId: 0,
         projectDesc: "",
-        renderingsFileid: ""
+        renderingsFileid: "",
+        category: 1
       };
       this.selectIndex = null;
     },
-    async queryController(self, params) {
+    //查询授权人人员
+    async listAuthUsers(projectId) {
+      const res = await proListAuthUsers(projectId);
+      if (res.data.code === IS_OK) {
+        this.authusers = res.data.data;
+      }
+    },
+    async queryController(self) {
+      let params = {
+        category: 1,
+        ...self.formInline
+      };
       const res = await resDdcProjectQueryTree(params);
       if (res.data.code === IS_OK) {
         self.dataArray = res.data.data;
@@ -316,6 +356,16 @@ export default {
     },
     powerBtn() {
       if (this.uid) {
+        // this.authorityVerification(
+        //   this.uid,
+        //   POWER_TYPE.SETTING_PERMISSIONS.key
+        // ).then(res => {
+        //   if (res) {
+        //     this.listAuthUsers(this.uid);
+        //     this.powerDialogVisible = true;
+        //   }
+        // });
+        this.listAuthUsers(this.uid);
         this.powerDialogVisible = true;
       } else {
         this.$message({

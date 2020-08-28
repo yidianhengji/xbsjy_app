@@ -1,7 +1,7 @@
 <template>
   <div class="app-wrapper">
     <sidebar :sidebar="sidebar" />
-    <div class="main-container" :style="{marginLeft: mainMarginLeft}">
+    <div class="main-container" :style="{ marginLeft: mainMarginLeft }">
       <navbar :sidebar="sidebar" />
       <app-main />
     </div>

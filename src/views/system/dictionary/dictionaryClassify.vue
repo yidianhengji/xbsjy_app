@@ -13,7 +13,9 @@
       :columns="columns"
       :rules="rules"
       :nodePage="false"
+      :uid.sync="uid"
       :reset-form="resetForm"
+      noViewBtn
     >
       <template slot="searchForm"></template>
       <template slot="add" slot-scope="data">
@@ -36,13 +38,20 @@
           <el-input v-model="data.addForm.fullPath"></el-input>
         </el-form-item>
         <el-form-item label="排序" prop="orderId">
-          <el-input-number v-model="data.addForm.orderId" :min="0"></el-input-number>
+          <el-input-number
+            v-model="data.addForm.orderId"
+            :min="0"
+          ></el-input-number>
         </el-form-item>
-        <el-form-item label="是否启用" prop="isEnable">
+        <!-- <el-form-item label="是否启用" prop="isEnable">
           <el-switch v-model="data.addForm.isEnable"></el-switch>
-        </el-form-item>
+        </el-form-item> -->
         <el-form-item label="备注" prop="description">
-          <el-input v-model="data.addForm.description" :rows="5" type="textarea"></el-input>
+          <el-input
+            v-model="data.addForm.description"
+            :rows="5"
+            type="textarea"
+          ></el-input>
         </el-form-item>
       </template>
     </form-base>
@@ -65,6 +74,7 @@ export default {
   },
   data() {
     return {
+      uid: "",
       dataArray: [],
       companyTreedata: [], // 单位列表
       rules: {
@@ -91,11 +101,18 @@ export default {
           label: "完整路径",
           align: "center"
         },
-        {
-          prop: "isEnable",
-          label: "是否启动",
-          align: "center"
-        },
+        // {
+        //   prop: "isEnable",
+        //   label: "是否启用",
+        //   align: "center",
+        //   render: (h, param) => {
+        //     return (
+        //       <div>
+        //         <el-switch v-model={param.row.isEnable} disabled></el-switch>
+        //       </div>
+        //     );
+        //   }
+        // },
         {
           prop: "orderId",
           label: "排序",

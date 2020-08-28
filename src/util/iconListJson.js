@@ -999,4 +999,4 @@ export const IconJson = [
       "fa fa-wheelchair-alt"
     ]
   }
-]
+];

@@ -2,7 +2,7 @@
   <div id="particlesDom">
     <div class="main">
       <div class="main-header">
-        <h2>数字化设计协同管理平台</h2>
+        <h2>{{project}}</h2>
       </div>
       <div class="main-content">
         <el-form
@@ -30,7 +30,7 @@
           </el-form-item>
           <el-form-item>
             <el-button
-              style="width: 100%;"
+              style="width: 100%; margin-top: 10px;"
               type="primary"
               @click="submitForm('ruleForm2')"
               :disabled="disabledBtn"
@@ -46,7 +46,7 @@
 <script>
 import particlesConfig from "./particles.json";
 import { resAuthUserlogin } from "../../api";
-import { IS_OK } from "../../api/path";
+import { IS_OK, PROJECT_NAME } from "../../api/path";
 export default {
   name: "login",
   data() {
@@ -67,6 +67,7 @@ export default {
       }, 100);
     };
     return {
+      project: PROJECT_NAME,
       isLoading: false,
       disabledBtn: false,
       ruleForm2: {
@@ -112,6 +113,7 @@ export default {
           const res = await resAuthUserlogin(params);
           if (res.data.code == IS_OK) {
             localStorage.setItem("uid", res.data.data.uid);
+            localStorage.setItem("userId", res.data.data.userId);
             this.isLoading = false;
             this.disabledBtn = false;
             loading.close();
@@ -136,13 +138,13 @@ export default {
   width: 100%;
   height: 100%;
   background-image: url('~@/assets/login/bg.jpg');
-  background-size: 100%;
   background-repeat: no-repeat;
   overflow: hidden;
   position: relative;
+  background-size: 100%;
 
   .main {
-    width: 23vw;
+    width: 420px;
     border-radius: 10px;
     min-width: 300px;
     margin: 0 auto;
@@ -159,6 +161,7 @@ export default {
 
     .main-header {
       text-align: center;
+      margin-top: 10px;
 
       h2 {
         font-size: 26px;

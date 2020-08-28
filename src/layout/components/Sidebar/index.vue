@@ -1,9 +1,9 @@
 <template>
-  <div class="sidebar-container" :style="{'width': sidebarWidth}">
+  <div class="sidebar-container" :style="{ width: sidebarWidth }">
     <logo />
     <el-scrollbar
       wrap-class="scrollbar-wrapper"
-      v-if="permissionRoutes && permissionRoutes.length>0"
+      v-if="permissionRoutes && permissionRoutes.length > 0"
     >
       <el-menu
         :router="router"
@@ -31,7 +31,7 @@
 <script>
 import Logo from "./Logo";
 import SidebarItem from "./SidebarItem";
-import { resBaseMenuQueryTree } from "../../../api";
+import { resBaseMenuQueryLoginUserMenuTree } from "../../../api";
 import { IS_OK } from "../../../api/path";
 export default {
   components: {
@@ -52,70 +52,7 @@ export default {
       activeTextColor: "#1e9fff",
       uniqueOpened: false,
       collapseTransition: false,
-      permissionRoutes: [
-        {
-          id: "00",
-          name: "首页",
-          icon: "el-icon-document",
-          url: "/home"
-        },
-        {
-          id: "11",
-          name: "系统管理",
-          icon: "el-icon-document",
-          url: "",
-          children: [
-            {
-              id: "112",
-              name: "人员管理",
-              icon: "el-icon-document",
-              url: "/personnel"
-            },
-            {
-              id: "113",
-              name: "字典管理",
-              icon: "el-icon-document",
-              url: "/dictionary"
-            },
-            {
-              id: "114",
-              name: "角色管理",
-              icon: "el-icon-document",
-              url: "/role"
-            },
-            {
-              id: "115",
-              name: "菜单管理",
-              icon: "el-icon-document",
-              url: "/menus"
-            },
-            {
-              id: "116",
-              name: "部门管理",
-              icon: "el-icon-document",
-              url: "/department"
-            },
-            {
-              id: "117",
-              name: "单位管理",
-              icon: "el-icon-document",
-              url: "/company"
-            }
-          ]
-        },
-        {
-          id: "22",
-          name: "公告管理",
-          icon: "el-icon-document",
-          url: "/notice"
-        },
-        {
-          id: "33",
-          name: "商品管理",
-          icon: "el-icon-document",
-          url: "/goods"
-        }
-      ]
+      permissionRoutes: []
     };
   },
   created() {
@@ -131,10 +68,10 @@ export default {
   },
   methods: {
     async getMenus() {
-      const res = await resBaseMenuQueryTree();
+      const res = await resBaseMenuQueryLoginUserMenuTree();
       if (res.data.code === IS_OK) {
         this.permissionRoutes = res.data.data;
-        localStorage.setItem("menu", JSON.stringify(this.permissionRoutes))
+        localStorage.setItem("menu", JSON.stringify(this.permissionRoutes));
       }
     }
   }
@@ -152,7 +89,7 @@ export default {
   top: 0;
   bottom: 0;
   left: 0;
-  z-index: 1001;
+  z-index: 2;
   overflow: hidden;
 
   > .el-scrollbar {
